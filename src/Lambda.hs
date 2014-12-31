@@ -5,44 +5,55 @@ import qualified Data.Map.Strict as Map
 import Control.Applicative ((<*>))
 import Data.Maybe (fromMaybe)
 
-data Lambda = Ap Lambda Lambda | Lam Char Lambda | Name Char
+data Lambda = Ap Lambda Lambda | Lam String Lambda | Name String
               deriving(Read,Show)
 
-betaReduce :: Lambda -> Lambda
-betaReduce = reduceWith Map.empty
-    where
-        reduceWith :: Map.Map Char Lambda -> Lambda -> Lambda
-        reduceWith m (Name c) = fromMaybe (Name c) $ Map.lookup c m
-        reduceWith m (Lam c l) = Lam c (reduceWith m l)
-        reduceWith m (Ap f y) = l'
-            where 
-                l' = case f' of
-                        (Lam x fx) -> let m' = Map.insert x y' m
-                                          in reduceWith m' fx
-                        _          -> Ap f' y'
-                f' = reduceWith m f
-                y' = reduceWith m y
+betaReduce :: Map.Map String Lambda -> Lambda -> Lambda
+betaReduce context (Name c) = fromMaybe (Name c) $ 
+                                Map.lookup c context
+betaReduce context (Lam c l) = Lam c (betaReduce context l)
+betaReduce context (Ap f y) = l'
+    where 
+        l' = case f' of
+                (Lam x fx) -> let context' = Map.insert x y' context
+                                in betaReduce context' fx
+                _          -> Ap f' y'
+        f' = betaReduce context f
+        y' = betaReduce context y
 
 apply :: Lambda -> Lambda -> Lambda
-apply f x = betaReduce (Ap f x)
+apply f x = betaReduce Map.empty (Ap f x)
 
+lambdaShow :: Lambda -> String
+lambdaShow (Name n) = n
+lambdaShow (Lam x fx) = "\\" ++ x ++ "." ++ lambdaShow fx
+lambdaShow (Ap f x) = wrapF ++ wrapX
+    where
+        wrapF = case f of
+                    Lam _ _ -> "(" ++ showF ++ ")"
+                    _       -> showF
+        wrapX = case x of
+                    Name _ -> showX
+                    _      -> "(" ++ showX ++ ")"
+        showF = lambdaShow f
+        showX = lambdaShow x
 
 -- Church numerals!
 zero :: Lambda
-zero = Lam 'f' (Lam 'x' (Name 'x'))
+zero = Lam "f" (Lam "x" (Name "x"))
 
 one :: Lambda
 one = (Ap lamSucc zero)
 
 -- For checking betaReduce
 one' :: Lambda 
-one' = Lam 'f' (Lam 'x' (Ap (Name 'f') (Name 'x')))
+one' = Lam "f" (Lam "x" (Ap (Name "f") (Name "x")))
 
 lamSucc :: Lambda
-lamSucc = Lam 'n' 
-            (Lam 'f' 
-                (Lam 'x' (Ap (Name 'f') 
-                             (Ap (Ap (Name 'n') 
-                                     (Name 'f')) 
-                                 (Name 'x')))))
+lamSucc = Lam "n" 
+            (Lam "f" 
+                (Lam "x" (Ap (Name "f") 
+                             (Ap (Ap (Name "n") 
+                                     (Name "f")) 
+                                 (Name "x")))))
 

@@ -15,8 +15,6 @@ build-type:          Simple
 -- extra-source-files:
 cabal-version:       >=1.10
 -- default-language:    Haskell2010
-extra-source-files: MAG.ttf,README.md
-data-files: MAG.ttf
 
 executable lambda
   Hs-source-dirs:      src
@@ -24,6 +22,8 @@ executable lambda
   -- other-modules:
   -- other-extensions:
   build-depends:       base >=4.6,
-                       containers >= 0.5.5.0
+                       containers >= 0.5.5.0,
+                       parsec >= 3.1.5,
+                       mtl >= 2.2.1
   default-language:    Haskell2010
 
