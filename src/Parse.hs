@@ -16,7 +16,11 @@ parenExpr = do
     return e
 
 varName :: P.Parsec String () String
-varName = fmap (:"") P.alphaNum
+-- varName = fmap (:"") P.al
+varName = do
+    c <- P.alphaNum P.<|> P.oneOf "+-*/!^&|><="
+    primes <- P.many $ P.char '\''
+    return (c:primes)
     -- fmap (:"") $ P.oneOf (['a'..'z']++['A'..'Z'])
     -- c1 <- P.letter
     -- s  <- P.many P.alphaNum

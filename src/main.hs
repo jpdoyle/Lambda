@@ -7,9 +7,8 @@ import qualified Text.Parsec as P
 import qualified Data.Map as M
 import Control.Monad.State
 
-data Statement = Assign String Expression |
-                 Expr Expression
-data Expression = Eager Lambda | Lazy Lambda
+data Statement = Assign String Lambda |
+                 Expr Lambda
 
 parseStmt :: P.Parsec String () Statement
 parseStmt = P.try assign P.<|> expr
@@ -21,17 +20,7 @@ parseStmt = P.try assign P.<|> expr
             P.spaces
             (Expr e) <- expr
             return $ Assign s e
-        expr = fmap Expr parseExpr
-
-parseExpr :: P.Parsec String () Expression
-parseExpr = eager P.<|> lazy
-    where
-        eager = do
-            P.char '!'
-            P.spaces
-            l <- lambdaExpr
-            return (Eager l)
-        lazy = fmap Lazy lambdaExpr
+        expr = fmap Expr lambdaExpr
 
 closedParens :: String -> Bool
 closedParens = go 0
@@ -42,23 +31,15 @@ closedParens = go 0
         go n (')':s) = go (n-1) s
         go n (_:s)   = go n s
 
-evalExpr :: M.Map String Lambda -> Expression -> Lambda
-evalExpr context (Eager l) = betaReduce context $
-                             betaReduce context l
-evalExpr _       (Lazy  l) = l
-
 eval :: Statement -> State (M.Map String Lambda) String
 eval (Assign var e) = do
     context <- get
-    let result = evalExpr context e
+    let result = reduce context e
     put (M.insert var result context)
     return $ lambdaShow result
-eval (Expr e) = do
+eval (Expr l) = do
     context <- get
-    let l = case e of 
-                (Eager x) -> x
-                (Lazy  x) -> x
-    return $ lambdaShow $ betaReduce context $ betaReduce context l
+    return $ lambdaShow $ reduce context l
 
 printResult :: State (M.Map String Lambda) String -> String
 printResult s = evalState s M.empty
