@@ -41,10 +41,12 @@ unPrimed s = take primInd s
         len = length s
 
 uniquifyNames :: Lambda -> Lambda
-uniquifyNames l = unbind $ evalState (uniquify $ bind l) M.empty
+uniquifyNames l = unbind $ evalState (uniquify $ bind l) 
+                                     (M.empty,M.empty)
     where
         uniquify :: BoundLambda -> 
-                        State (M.Map String Int) BoundLambda
+                    State (M.Map String Int,M.Map String String) 
+                          BoundLambda
         uniquify (BLam x fx) = do
             x' <- uniqueName x
             fx' <- uniquify fx
@@ -54,16 +56,24 @@ uniquifyNames l = unbind $ evalState (uniquify $ bind l) M.empty
             x' <- uniquify x
             return $ BAp f' x'
         uniquify (BFreeVar x) = do
-            x' <- uniqueName x
+            (_,free) <- get
+            let base = unPrimed x
+            let binding = maybe (uniqueName x) return
+                                $ M.lookup base free
+            x' <- binding
+            (m,_) <- get
+            put (m,M.insert base x' free)
             return $ BFreeVar x'
         uniquify bl = return bl
-        uniqueName :: String -> State (M.Map String Int) String
+        uniqueName :: String -> 
+                      State (M.Map String Int,M.Map String String) 
+                            String
         uniqueName n = do
-            m <- get
+            (m,free) <- get
             let base = unPrimed n
             let count = 1 + (fromMaybe (-1) $ M.lookup base m)
             let n' = base ++ replicate count '\''
-            put $ M.insert base count m
+            put $ (M.insert base count m,free)
             return n'
 
 newtype Bimap a b = Bimap (M.Map a b,M.Map b a)
